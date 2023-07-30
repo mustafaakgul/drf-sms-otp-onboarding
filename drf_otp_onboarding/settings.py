@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from decouple import config
+from corsheaders.defaults import default_headers
+from datetime import timedelta
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,21 +30,44 @@ SECRET_KEY = "django-insecure-=4^rq46xnkfk#ktd7buw^6i)wv8^vz8*a*^462g=z8bm5_t0oe
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 ALLOWED_HOSTS = []
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # Built-in
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # Apps
+    "accounts",
+    "contacts",
+    #"core",
+
+    # Third-party
+    'corsheaders',
+    'drf_spectacular',
+    'django_filters',
+    'rest_framework',
+    #'core.celery.CeleryConfig',
+    'celery',
+    "kombu.transport",
 ]
 
+# User Model
+AUTH_USER_MODEL = "accounts.User"
+
+
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -69,16 +97,24 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "drf_otp_onboarding.wsgi.application"
+ASGI_APPLICATION = "drf_otp_onboarding.asgi.application" ## Added after
+CORS_ALLOW_ALL_ORIGINS = True ## Added after
+CSRF_TRUSTED_ORIGINS = ["https://*.ridwanray.com"] ## Added after
+LOGIN_URL = "rest_framework:login" ## Added after
+LOGOUT_URL = "rest_framework:logout" ## Added after
 
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(default=config('DATABASE_URL'))
 }
 
 
@@ -111,8 +147,136 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Twilio Configurations
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER')
+
+
+# Spectacular Configurations
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+}
+
+SPECTACULAR_SETTINGS = {
+    'SCHEMA_PATH_PREFIX': r'/api/v1',
+    'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'COMPONENT_SPLIT_PATCH': True,
+    'COMPONENT_SPLIT_REQUEST': True,
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": True,
+        "displayRequestDuration": True
+    },
+    'UPLOADED_FILES_USE_URL': True,
+    'TITLE': 'Django DRF & OTP verification',
+    'DESCRIPTION': 'Django DRF & OTP verification',
+    'VERSION': '0.2.0',
+    'LICENCE': {'name': 'BSD License'},
+    'CONTACT': {'name': 'Ridwanray', 'email': 'alabarise@gmail.com'},
+    # OAUTH2 SPEC
+    'OAUTH2_FLOWS': [],
+    'OAUTH2_AUTHORIZATION_URL': None,
+    'OAUTH2_TOKEN_URL': None,
+    'OAUTH2_REFRESH_URL': None,
+    'OAUTH2_SCOPES': None,
+}
+
+
+# DRF
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.CustomPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id"
+
+}
+
+
+# Logging
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'file': {
+#             'level': 'DEBUG',
+#             'class': 'logging.FileHandler',
+#             'filename': 'logs/debug.log'
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['file'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     }
+# }
+
+
+# Celery Configurations
+TOKEN_LIFESPAN = 10  # mins
+
+OTP_EXPIRE_TIME = 10  # mins
+
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+#CELERY_BROKER_URL = config('RABBITMQ_URL')
+CELERY_BROKER_URL = 'amqp://localhost'
+FLOWER_BASIC_AUTH = os.environ.get('FLOWER_BASIC_AUTH')
+
+
+# Not Sure
+DATE_INPUT_FORMATS = [
+    "%d/%m/%Y",
+    "%d/%m/%y",  # '10/02/2020', '10/02/20'
+    "%Y-%m-%d",
+    "%m/%d/%Y",
+    "%m/%d/%y",  # '2006-10-25', '10/25/2006', '10/25/06'
+    "%b %d %Y",
+    "%b %d, %Y",  # 'Oct 25 2006', 'Oct 25, 2006'
+    "%d %b %Y",
+    "%d %b, %Y",  # '25 Oct 2006', '25 Oct, 2006'
+    "%B %d %Y",
+    "%B %d, %Y",  # 'October 25 2006', 'October 25, 2006'
+    "%d %B %Y",
+    "%d %B, %Y",  # '25 October 2006', '25 October, 2006'
+]
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"

@@ -2,10 +2,13 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+#from decouple import config
 
 
 def main():
     """Run administrative tasks."""
+    #environment = config('ENVIRONMENT')
+    #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings."+environment)
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "drf_otp_onboarding.settings")
     try:
         from django.core.management import execute_from_command_line

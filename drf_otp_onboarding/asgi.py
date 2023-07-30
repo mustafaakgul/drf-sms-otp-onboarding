@@ -9,8 +9,11 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 
 import os
 
+# from decouple import config
 from django.core.asgi import get_asgi_application
 
+# environment = config('ENVIRONMENT')
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings."+environment)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "drf_otp_onboarding.settings")
 
 application = get_asgi_application()
